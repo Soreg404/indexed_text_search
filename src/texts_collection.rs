@@ -1,4 +1,5 @@
 use std::collections::BTreeSet;
+use std::ops::Sub;
 use crate::index_combined::IndexManyToMany;
 use crate::index_single_str::IndexSingleStr;
 
@@ -24,22 +25,54 @@ pub type SearchResult<'a> = Result<&'a BTreeSet<usize>, SearchError>;
 
 impl TextsCollection {
 	pub fn store(&mut self, text: &str) {
-		self.index_of_cuts.contains_id(0);
-		if self.index_of_texts.contains_text(text) {
-			return;
+		let text_id =
+			if !self.index_of_texts.contains_text(text) {
+				self.index_of_texts.insert(text)
+			} else {
+				return
+			};
+
+		println!("calculating cuts...");
+		let text_chars: Vec<char> = text.chars().collect();
+		let mut cuts = Vec::<Box<str>>::new();
+
+		let mut it_first = text_chars.iter().enumerate();
+		while let Some((i, _c)) = it_first.next() {
+			let mut it_second = it_first.clone();
+			let mut j = i;
+			loop {
+				let cut = String::from_iter(text_chars[i..=j].iter());
+				// print!("{cut:?},");
+				cuts.push(Box::from(cut.as_str()));
+
+				if let Some((idx, _c)) = it_second.next() {
+					j = idx;
+				} else {
+					break;
+				}
+
+				if j - i == 7 {
+					break;
+				}
+			}
 		}
-		self.store_assign(text, &[])
+		println!("done calculating cuts");
+
+		let len_before = self.index_of_cuts.len();
+		let cuts_len = cuts.len();
+
+		for cut in cuts {
+			let cut_id = self.index_of_cuts.insert(cut.as_ref());
+			self.index_cut_to_texts.associate(cut_id, text_id);
+		}
+
+		println!("n={}, total={}, added={}", cuts_len, self.index_of_cuts.len(),
+				 self.index_of_cuts.len() - len_before);
+
+		// println!("{:?}", &self.index_of_cuts);
 	}
 	pub fn store_assign(&mut self, text: &str, cuts: &[&str]) {
 		let text_id = self.index_of_texts.insert(text);
-
-		// todo: properly calculate cuts and weights
-		let calculated_cuts = text.split_whitespace();
-
-		for cut in calculated_cuts {
-			let cut_id = self.index_of_cuts.insert(cut);
-			self.index_cut_to_texts.associate(cut_id, text_id);
-		}
 
 		for cut in cuts {
 			let cut_id = self.index_of_cuts.insert(cut);

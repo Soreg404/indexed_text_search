@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct IndexSingleStr {
 	autoincrement: usize,
 	primary: BTreeMap<usize, Box<str>>,
@@ -34,5 +34,8 @@ impl IndexSingleStr {
 	}
 	pub fn contains_text(&self, text: &str) -> bool {
 		self.reverse.contains_key(text)
+	}
+	pub fn len(&self) -> usize {
+		self.primary.len()
 	}
 }
